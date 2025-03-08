@@ -5,11 +5,15 @@ from openai import OpenAI
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # Title of the app
-st.title("Ak`s Cricket info repository")
+st.title("Ak's Cricket Info Repository")
 
 # Initialize session state for chat history
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {"role": "system", "content": "You are an AI assistant specializing in cricket and its history. "
+                                      "You should only provide information related to cricket, including players, matches, records, and historical events. "
+                                      "Do not answer any questions unrelated to cricket. If a user asks about another topic, politely redirect them."}
+    ]
 
 # Display chat history
 for message in st.session_state.messages:
@@ -17,20 +21,15 @@ for message in st.session_state.messages:
     with st.chat_message(role):
         st.markdown(content)
 
-# Collect user input for symptoms
-user_input = st.chat_input("Describe your symptoms here...")
+# Collect user input
+user_input = st.chat_input("Ask me anything about cricket...")
 
-# Function to get a response from OpenAI with health advice
+# Function to get a response from OpenAI with context restrictions
 def get_response(prompt):
-    # Here, you may include a more specific prompt or fine-tune the assistant's instructions to provide general remedies
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[
-            {"role": m["role"], "content": m["content"]}
-            for m in st.session_state.messages
-        ] + [{"role": "user", "content": prompt}]
+        messages=st.session_state.messages + [{"role": "user", "content": prompt}]
     )
-    # Access the content directly as an attribute
     return response.choices[0].message.content
 
 # Process and display response if there's input
@@ -41,9 +40,13 @@ if user_input:
         st.markdown(user_input)
 
     # Generate assistant's response
-    assistant_prompt = f"User has reported the following symptoms: {user_input}. Provide a general remedy or advice."
-    assistant_response = get_response(assistant_prompt)
+    assistant_response = get_response(user_input)
+
+    # Check if the response is unrelated (Negative Prompting)
+    if "I'm here to talk about cricket" in assistant_response or "I can only provide information on cricket" in assistant_response:
+        assistant_response = "I specialize in cricket and its history. Please ask me about cricket-related topics."
+
     st.session_state.messages.append({"role": "assistant", "content": assistant_response})
-    
+
     with st.chat_message("assistant"):
         st.markdown(assistant_response)
